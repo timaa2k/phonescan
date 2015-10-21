@@ -1,7 +1,5 @@
 #include <tins/tins.h>
 #include <iostream>
-#include <string>
-#include <unordered_map>
 #include <thread>
 #include <mutex>
 #include <unistd.h>
@@ -19,16 +17,25 @@ std::string vendor_string(HWAddress<6> macaddr) {
 }
 
 void process(Packet p) {
+	Timestamp t = p.timestamp();
 	if (p.pdu()->find_pdu<Dot11ProbeRequest>(PDU::DOT11_PROBE_REQ)) {
-		Timestamp t = p.timestamp();
-		Dot11ProbeRequest req = p.pdu()->rfind_pdu<Dot11ProbeRequest>(PDU::DOT11_PROBE_REQ);
-		HWAddress<6> macaddr = req.addr2();
-		std::string key = vendor_string(macaddr);
+		Dot11ProbeRequest request = p.pdu()->rfind_pdu<Dot11ProbeRequest>(PDU::DOT11_PROBE_REQ);
+		std::string src_addr = vendor_string(request.addr2());
 		{
 			std::lock_guard<std::mutex> lock(map_mutex);
-			if (devices.count(key) == 0)
-				std::cout << "New device [" << key << "] found at " << t.seconds() << std::endl;
-			devices[key] = t;
+			if (devices.count(src_addr) == 0)
+				std::cout << "New device [" << src_addr << "] found at " << p.timestamp().seconds() << std::endl;
+			devices[src_addr] = t;
+		}
+	}
+	else if (p.pdu()->find_pdu<Dot11Data>(PDU::DOT11_DATA)) {
+		Dot11Data frame = p.pdu()->rfind_pdu<Dot11Data>(PDU::DOT11_DATA);
+		std::string src_addr = vendor_string(frame.addr2());
+		std::string dst_addr = vendor_string(frame.addr1());
+		{
+			std::lock_guard<std::mutex> lock(map_mutex);
+			if (devices.count(src_addr) == 1)
+				devices[src_addr] = t;
 		}
 	}
 }
@@ -36,7 +43,7 @@ void process(Packet p) {
 void receive_probe_requests(NetworkInterface iface) {
 	SnifferConfiguration config;
 	config.set_rfmon(true);
-	config.set_filter("type mgt subtype probe-req");
+	config.set_filter("type mgt subtype probe-req || type data subtype null");
 	Sniffer sniffer(iface.name(), config);
 	while(true) process(sniffer.next_packet());
 }
