@@ -31,7 +31,6 @@ void process(Packet p) {
 	else if (p.pdu()->find_pdu<Dot11Data>(PDU::DOT11_DATA)) {
 		Dot11Data frame = p.pdu()->rfind_pdu<Dot11Data>(PDU::DOT11_DATA);
 		std::string src_addr = vendor_string(frame.addr2());
-		std::string dst_addr = vendor_string(frame.addr1());
 		{
 			std::lock_guard<std::mutex> lock(map_mutex);
 			if (devices.count(src_addr) == 1)
