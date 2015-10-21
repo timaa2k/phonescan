@@ -5,9 +5,9 @@
 #include <unistd.h>
 #include <chrono>
 
-#define TIMEOUT 300
-
 using namespace Tins;
+
+const unsigned int TIMEOUT = 300;
 
 std::map<std::string, Timestamp> devices;
 std::mutex map_mutex;
@@ -24,7 +24,7 @@ void process(Packet p) {
 		{
 			std::lock_guard<std::mutex> lock(map_mutex);
 			if (devices.count(src_addr) == 0)
-				std::cout << "New device [" << src_addr << "] found at " << p.timestamp().seconds() << std::endl;
+				std::cout << "New device [" << src_addr << "] found at " << t.seconds() << std::endl;
 			devices[src_addr] = t;
 		}
 	}
@@ -54,7 +54,7 @@ std::chrono::system_clock::rep current_time_in_seconds(){
 
 void delete_devices() {
 	while(true) {
-		sleep(60);
+		sleep(10);
 		{
 			std::lock_guard<std::mutex> lock(map_mutex);
 			for(auto const &m : devices) {
